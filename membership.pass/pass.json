@@ -1,0 +1,20 @@
+{
+  "barcode": { "format": "PKBarcodeFormatSquare" },
+  "organizationName": "obl.ong",
+  "teamIdentifier": "U3D876D8V5",
+  "passTypeIdentifier": "pass.ong.obl.membership",
+  "description": "obl.ong memership card",
+  "foregroundColor": "rgb(37,37,37)",
+  "backgroundColor": "rgb(255,32,110)",
+  "secondary-auxiliary": [],
+  "formatVersion": 1,
+  "generic": {
+    "headerFields": [
+      { "label": "Status", "value": "Good Standing", "key": "userstatus" },
+      { "value": "53", "label": "Member ID", "key": "memberid" }
+    ],
+    "primaryFields": [
+      { "value": "Fiona Hackworthy", "label": "Name", "key": "membername" }
+    ]
+  }
+}
