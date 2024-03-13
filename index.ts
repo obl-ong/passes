@@ -63,7 +63,7 @@ app.get('/auth/callback', async (req, res) => {
 			code: code.toString(),
 			client_id: process.env.CLIENT_ID || " ",
 			client_secret: process.env.CLIENT_SECRET || "",
-			redirect_uri: "https://pass.obl.ong/auth/calnglback",
+			redirect_uri: "https://pass.obl.ong/auth/callback",
 		}).toString()
 	})).json();
 
