@@ -61,7 +61,7 @@ app.get('/auth', async (req, res) => {
 	res.redirect("https://admin.obl.ong/oauth/authorize?" + new URLSearchParams({
 
 		client_id: process.env.CLIENT_ID || " ",
-		redirect_uri: "https://oblpass.underpass.clb.li/auth/callback",
+		redirect_uri: "https://pass.obl.ong/auth/callback",
 		scope: "openid name admin user",
 		response_type: "code",
 		response_mode: "query",
@@ -81,7 +81,7 @@ app.get('/auth/callback', async (req, res) => {
 			code: code.toString(),
 			client_id: process.env.CLIENT_ID || " ",
 			client_secret: process.env.CLIENT_SECRET || "",
-			redirect_uri: "https://oblpass.underpass.clb.li/auth/callback",
+			redirect_uri: "https://pass.obl.ong/auth/callback",
 		}).toString()
 	})).json();
 
