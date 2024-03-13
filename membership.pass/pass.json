@@ -1,5 +1,5 @@
 {
-  "barcode": { "format": "PKBarcodeFormatSquare" },
+  "barcode": { "format": "PKBarcodeFormatQR" },
   "organizationName": "obl.ong",
   "teamIdentifier": "U3D876D8V5",
   "passTypeIdentifier": "pass.ong.obl.membership",

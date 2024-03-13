@@ -1,11 +1,32 @@
 {% extends "base.njk" %}
-
 {% block body %}
-<h1>Hi, {{ user.name }}</h1>
-<p>Here you can download your membership.</p>
-
-<h2>Download Options</h2>
-<h3>Apple Wallet (.pkpass)</h3>
-<p>This will also work with <a href="https://github.com/pablo-s/passes">GNOME Passes (Linux)</a>, <a href="https://f-droid.org/en/packages/business.braid.f_wallet/">fWallet (Android)</a> and <a href="https://f-droid.org/en/packages/org.ligi.passandroid/">PassAndroid (Android)</a></p>
-<a href="/generate/pkpass">Download</a>
-{% endblock %}
+    <script>
+        window.addEventListener('load', () => {
+           fetch(`/generate/google`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    }
+                }).then(res => {
+                    return res.text();
+                }).then(button => {
+                    document.getElementById('button').innerHTML = button;
+                });
+        });
+    </script>
+    <h1>Hi, {{ user.name }}</h1>
+    <p>Here you can download your membership.</p>
+    <h2>Download Options</h2>
+    <h3>Apple Wallet (.pkpass)</h3>
+    <p>This will also work with
+        <a href="https://github.com/pablo-s/passes">GNOME Passes (Linux)</a>,
+        <a href="https://f-droid.org/en/packages/business.braid.f_wallet/">fWallet (Android)</a>
+        and
+        <a href="https://f-droid.org/en/packages/org.ligi.passandroid/">PassAndroid (Android)</a>
+    </p>
+    <a href="/generate/pkpass">Download</a>
+    <h3>Google Wallet</h3>
+    <form id="form">
+            <div id="button">Loading... Please wait.</div>
+        </form>
+    {% endblock %}

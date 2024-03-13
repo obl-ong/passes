@@ -6,6 +6,10 @@ import fetch from 'node-fetch'
 import nunjucks from 'nunjucks'
 import Sfs from 'session-file-store'
 import shajs from 'sha.js'
+import bodyParser from 'body-parser'
+import { GoogleAuth } from 'google-auth-library'
+import jwt from 'jsonwebtoken'
+
 
 const sfs = Sfs(session)
 
@@ -18,6 +22,7 @@ declare module 'express-session' {
 	}
 }
 
+app.use(bodyParser.urlencoded({ extended: true }));
 nunjucks.configure('views', {
 	autoescape: true,
 	express: app,
@@ -31,6 +36,19 @@ app.use(session({
 	saveUninitialized: true,
 	cookie: { secure: false }
 }));
+const issuerId = '3388000000022317765';
+
+// TODO: Define Class ID
+const classId = `${issuerId}.oblong_membership`;
+
+const baseUrl = 'https://walletobjects.googleapis.com/walletobjects/v1';
+
+const credentials = require("./certs/sa.json");
+
+const httpClient = new GoogleAuth({
+	credentials: credentials,
+	scopes: 'https://www.googleapis.com/auth/wallet_object.issuer'
+});
 
 app.get("/", (req, res) => {
 	res.render("index.njk")
@@ -43,7 +61,7 @@ app.get('/auth', async (req, res) => {
 	res.redirect("https://admin.obl.ong/oauth/authorize?" + new URLSearchParams({
 
 		client_id: process.env.CLIENT_ID || " ",
-		redirect_uri: "https://pass.obl.ong/auth/callback",
+		redirect_uri: "https://oblpass.underpass.clb.li/auth/callback",
 		scope: "openid name admin user",
 		response_type: "code",
 		response_mode: "query",
@@ -63,7 +81,7 @@ app.get('/auth/callback', async (req, res) => {
 			code: code.toString(),
 			client_id: process.env.CLIENT_ID || " ",
 			client_secret: process.env.CLIENT_SECRET || "",
-			redirect_uri: "https://pass.obl.ong/auth/callback",
+			redirect_uri: "https://oblpass.underpass.clb.li/auth/callback",
 		}).toString()
 	})).json();
 
@@ -101,7 +119,7 @@ app.get("/generate/pkpass", async (req, res) => {
 	fs.cpSync("./membership.pass", `/tmp/${id}.pass`, { recursive: true })
 	console.log(`/tmp/${id}`)
 	fs.writeFileSync(`/tmp/${id}.pass/pass.json`, JSON.stringify({
-		"barcode": { "format": "PKBarcodeFormatSquare" },
+		"barcode": { "format": "PKBarcodeFormatQR" },
 		"organizationName": "obl.ong",
 		"teamIdentifier": "U3D876D8V5",
 		"passTypeIdentifier": "pass.ong.obl.membership",
@@ -113,7 +131,7 @@ app.get("/generate/pkpass", async (req, res) => {
 		"generic": {
 			"headerFields": [
 				{ "label": "Status", "value": "Member", "key": "userstatus" },
-				{ "value": user.sub, "label": "Member ID", "key": "memberid" }
+				{ "value": user.sub.toString(), "label": "Member ID", "key": "memberid" }
 			],
 			"primaryFields": [
 				{ "value": user.name, "label": "Name", "key": "membername" }
@@ -150,6 +168,151 @@ app.get("/generate/pkpass", async (req, res) => {
 		console.error(err)
 		res.send("An error happened. Try again or nag David.")
 	}
+});
+
+// google wallet insanity follows
+async function createPassClass(req: any, res: any) {
+	// TODO: Create a Generic pass class
+	let genericClass = {
+		"id": classId,
+		"classTemplateInfo": {
+			"cardTemplateOverride": {
+				"cardRowTemplateInfos": [
+					{
+						"twoItems": {
+							"startItem": {
+								"firstValue": {
+									"fields": [
+										{
+											"fieldPath": "object.textModulesData['member_id']"
+										}
+									]
+								}
+							},
+							"endItem": {
+								"firstValue": {
+									"fields": [
+										{
+											"fieldPath": "object.textModulesData['role']"
+										}
+									]
+								}
+							}
+						}
+					}
+				]
+			}
+		}
+	};
+
+	let response;
+	try {
+		response = await httpClient.request({
+			url: `${baseUrl}/genericClass/${classId}`,
+			method: 'GET'
+		});
+
+		console.log('Class already exists');
+		console.log(response);
+	} catch (err: any) {
+		if (err.response && err.response.status === 404) {
+	
+			response = await httpClient.request({
+				url: `${baseUrl}/genericClass`,
+				method: 'POST',
+				data: genericClass
+			});
+
+			console.log('Class insert response');
+			console.log(response);
+		} else {
+			console.log(err);
+			res.send('Something went wrong...check the console logs!');
+		}
+	}
+}
+
+async function createPassObject(req: any, res: any) {
+	if (!req.session.user) return res.write("Failed.")
+	const user = req.session.user
+	// TODO: Create a new Generic pass for the user
+	let objectSuffix = `suffix`;
+	let objectId = `${issuerId}.${objectSuffix}`;
+
+	let genericObject = {
+		"id": objectId,
+		"classId": classId,
+		"logo": {
+			"sourceUri": {
+				"uri": "https://avatars.githubusercontent.com/u/117489383?s=200&v=4"
+			},
+			"contentDescription": {
+				"defaultValue": {
+					"language": "en-US",
+					"value": "obl.ong oval logo"
+				}
+			}
+		},
+		"cardTitle": {
+			"defaultValue": {
+				"language": "en-US",
+				"value": "Obl.ong Membership"
+			}
+		},
+		"subheader": {
+			"defaultValue": {
+				"language": "en-US",
+				"value": "Member Name"
+			}
+		},
+		"header": {
+			"defaultValue": {
+				"language": "en-US",
+				"value": user.name
+			}
+		},
+		"textModulesData": [
+			{
+				"id": "member_id",
+				"header": "Member ID",
+				"body": user.sub
+			},
+			{
+				"id": "role",
+				"header": "Role",
+				"body": "Member"
+			}
+		],
+		"barcode": {
+			"type": "QR_CODE",
+			"value": user.sub.toString(),
+			"alternateText": ""
+		},
+		"hexBackgroundColor": "#343434"
+	};
+
+	// TODO: Create the signed JWT and link
+	const claims = {
+		iss: credentials.client_email,
+		aud: 'google',
+		origins: [],
+		typ: 'savetowallet',
+		payload: {
+			genericObjects: [
+				genericObject
+			]
+		}
+	};
+
+	const token = jwt.sign(claims, credentials.private_key, { algorithm: 'RS256' });
+	const saveUrl = `https://pay.google.com/gp/v/save/${token}`;
+
+	res.send(`<a href='${saveUrl}'><img src='wallet-button.png'></a>`);
+}
+
+app.post('/generate/google', async (req, res) => {
+	await createPassClass(req, res);
+	await createPassObject(req, res);
 });
 app.listen(port, () => {
 	console.log(`Listening on port ${port}...`);
