@@ -131,7 +131,7 @@ app.get("/generate/pkpass", async (req, res) => {
 		"generic": {
 			"headerFields": [
 				{ "label": "Status", "value": "Member", "key": "userstatus" },
-				{ "value": user.sub.toString(), "label": "Member ID", "key": "memberid" }
+				{ "value": user.sub.toString(), "label": "ID", "key": "memberid" }
 			],
 			"primaryFields": [
 				{ "value": user.name, "label": "Name", "key": "membername" }

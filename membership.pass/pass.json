@@ -11,7 +11,7 @@
   "generic": {
     "headerFields": [
       { "label": "Status", "value": "Good Standing", "key": "userstatus" },
-      { "value": "53", "label": "Member ID", "key": "memberid" }
+      { "value": "53", "label": "ID", "key": "memberid" }
     ],
     "primaryFields": [
       { "value": "Fiona Hackworthy", "label": "Name", "key": "membername" }
