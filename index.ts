@@ -154,31 +154,3 @@ app.get("/generate/pkpass", async (req, res) => {
 app.listen(port, () => {
 	console.log(`Listening on port ${port}...`);
 });
-
-/*
-try {
-	const examplePass = await createPass({
-		model: "./membership.pass",
-		certificates: {
-			wwdr: "./certs/wwdr.pem",
-			signerCert: "./certs/signerCert.pem",
-			signerKey: {
-				keyFile: "./certs/signerKey.pem",
-				passphrase: "ovals"
-			}
-		},
-		overrides: {
-			serialNumber: "AAGH44625236dddaffbda"
-		}
-	});
-
-
-	// Generate the stream, which gets returned through a Promise
-	const stream =  examplePass.generate()
-
-	stream.pipe(fs.createWriteStream("stream.pkpass"))
-	console.log(stream)
-} catch (err) {
-	console.error(err)
-}
-*/
