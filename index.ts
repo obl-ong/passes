@@ -35,6 +35,7 @@ if (process.env.SENTRY_DSN) {
 }
 app.use((req: any, res: any, next: any) => {
 	res.set("Access-Control-Allow-Headers", "sentry-trace, baggage")
+	res.set("Document-Policy", "js-profiling");
 	next()
 })
 app.use(bodyParser.urlencoded({ extended: true }));
