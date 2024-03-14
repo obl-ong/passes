@@ -13,10 +13,6 @@
                     replaysSessionSampleRate: 0.1,
                     replaysOnErrorSampleRate: 1.0,
                     profilesSampleRate: 1.0,
-                    integrations: [
-                        new Sentry.BrowserProfilingIntegration(),
-                        new Sentry.BrowserTracing()
-                    ],
                     beforeSend(event, hint) {
                         if (event.exception && event.event_id) {
                             Sentry.showReportDialog({eventId: event.event_id});
