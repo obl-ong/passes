@@ -22,6 +22,8 @@ declare module 'express-session' {
 	}
 }
 
+app.set('trust proxy', true)
+
 if (process.env.SENTRY_DSN) {
 	console.log("Sentry loaded")
 	Sentry.init({
