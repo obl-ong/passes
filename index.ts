@@ -9,7 +9,7 @@ import shajs from 'sha.js'
 import bodyParser from 'body-parser'
 import { GoogleAuth } from 'google-auth-library'
 import jwt from 'jsonwebtoken'
-
+import * as Sentry from "@sentry/bun";
 
 const sfs = Sfs(session)
 
@@ -22,6 +22,21 @@ declare module 'express-session' {
 	}
 }
 
+if (process.env.SENTRY_DSN) {
+	console.log("Sentry loaded")
+	Sentry.init({
+		dsn: process.env.SENTRY_DSN,
+		integrations: [
+			new Sentry.Integrations.Http({ tracing: true }),
+			new Sentry.Integrations.Express({ app }),
+		],
+		tracesSampleRate: 1.0,
+	});
+}
+app.use((req: any, res: any, next: any) => {
+	res.set("Access-Control-Allow-Headers", "sentry-trace, baggage")
+	next()
+})
 app.use(bodyParser.urlencoded({ extended: true }));
 nunjucks.configure('views', {
 	autoescape: true,
@@ -112,62 +127,63 @@ app.get("/pass", (req, res) => {
 });
 
 app.get("/generate/pkpass", async (req, res) => {
-	if (!req.session.user) return res.redirect("/auth")
-	const user = req.session.user
-	const id = Math.random().toString(32).slice(2)
+	Sentry.startSpan({ name: "Generate Apple Wallet Pass" }, async (span) => {
+		if (!req.session.user) return res.redirect("/auth")
+		const user = req.session.user
+		const id = Math.random().toString(32).slice(2)
 
-	fs.cpSync("./membership.pass", `/tmp/${id}.pass`, { recursive: true })
-	console.log(`/tmp/${id}`)
-	fs.writeFileSync(`/tmp/${id}.pass/pass.json`, JSON.stringify({
-		"barcode": { "format": "PKBarcodeFormatQR" },
-		"organizationName": "obl.ong",
-		"teamIdentifier": "U3D876D8V5",
-		"passTypeIdentifier": "pass.ong.obl.membership",
-		"description": "obl.ong memership card",
-		"foregroundColor": "rgb(37,37,37)",
-		"backgroundColor": "rgb(255,32,110)",
-		"secondary-auxiliary": [],
-		"formatVersion": 1,
-		"generic": {
-			"headerFields": [
-				{ "label": "Status", "value": "Member", "key": "userstatus" },
-				{ "value": user.sub.toString(), "label": "ID", "key": "memberid" }
-			],
-			"primaryFields": [
-				{ "value": user.name, "label": "Name", "key": "membername" }
-			]
-		}
-	}
-
-	))
-	try {
-		const pass = await createPass({
-			model: `/tmp/${id}`,
-			certificates: {
-				wwdr: "./certs/wwdr.pem",
-				signerCert: "./certs/signerCert.pem",
-				signerKey: {
-					keyFile: "./certs/signerKey.pem",
-					passphrase: "ovals"
-				}
-			},
-			overrides: {
-				serialNumber: shajs('sha256').update(user.sub).digest('hex')
+		fs.cpSync("./membership.pass", `/tmp/${id}.pass`, { recursive: true })
+		fs.writeFileSync(`/tmp/${id}.pass/pass.json`, JSON.stringify({
+			"barcode": { "format": "PKBarcodeFormatQR" },
+			"organizationName": "obl.ong",
+			"teamIdentifier": "U3D876D8V5",
+			"passTypeIdentifier": "pass.ong.obl.membership",
+			"description": "obl.ong memership card",
+			"foregroundColor": "rgb(37,37,37)",
+			"backgroundColor": "rgb(255,32,110)",
+			"secondary-auxiliary": [],
+			"formatVersion": 1,
+			"generic": {
+				"headerFields": [
+					{ "label": "Status", "value": "Member", "key": "userstatus" },
+					{ "value": user.sub.toString(), "label": "ID", "key": "memberid" }
+				],
+				"primaryFields": [
+					{ "value": user.name, "label": "Name", "key": "membername" }
+				]
 			}
-		});
+		}
+
+		))
+		try {
+			const pass = await createPass({
+				model: `/tmp/${id}`,
+				certificates: {
+					wwdr: "./certs/wwdr.pem",
+					signerCert: "./certs/signerCert.pem",
+					signerKey: {
+						keyFile: "./certs/signerKey.pem",
+						passphrase: "ovals"
+					}
+				},
+				overrides: {
+					serialNumber: shajs('sha256').update(user.sub).digest('hex')
+				}
+			});
 
 
-		pass.barcodes({ message: shajs('sha256').update(user.sub).digest('hex'), format: "PKBarcodeFormatCode128" })
-		const stream = pass.generate()
-		res.set({
-			"Content-type": "application/vnd.apple.pkpass",
-			"Content-disposition": `attachment; filename=oblong.pkpass`,
-		});
-		stream.pipe(res)
-	} catch (err) {
-		console.error(err)
-		res.send("An error happened. Try again or nag David.")
-	}
+			pass.barcodes({ message: shajs('sha256').update(user.sub).digest('hex'), format: "PKBarcodeFormatCode128" })
+			const stream = pass.generate()
+			res.set({
+				"Content-type": "application/vnd.apple.pkpass",
+				"Content-disposition": `attachment; filename=oblong.pkpass`,
+			});
+			stream.pipe(res)
+		} catch (err) {
+			Sentry.captureException(err)
+			res.send("An error happened. Try again or nag David.")
+		}
+	})
 });
 
 // google wallet insanity follows
@@ -215,8 +231,9 @@ async function createPassClass(req: any, res: any) {
 		console.log('Class already exists');
 		console.log(response);
 	} catch (err: any) {
+		Sentry.captureException(err)
 		if (err.response && err.response.status === 404) {
-	
+
 			response = await httpClient.request({
 				url: `${baseUrl}/genericClass`,
 				method: 'POST',
@@ -311,9 +328,25 @@ async function createPassObject(req: any, res: any) {
 }
 
 app.post('/generate/google', async (req, res) => {
-	await createPassClass(req, res);
-	await createPassObject(req, res);
+	Sentry.startSpan({ name: "Generate Google Wallet Pass" }, async (span) => {
+
+		try {
+
+
+			await createPassClass(req, res);
+			await createPassObject(req, res);
+
+		} catch (e) {
+			Sentry.captureException(e)
+		}
+	});
 });
+
+
+app.use(function onError(err: any, req: any, res: any, next: Function) {
+	res.send("An error occured. This has been reported. No need to worry!")
+});
+
 app.listen(port, () => {
 	console.log(`Listening on port ${port}...`);
 });
